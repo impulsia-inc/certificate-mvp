@@ -9,15 +9,17 @@ export class MockAuthService implements AuthService {
 
     // En modo local / MVP: Permitimos acceso flexible con cualquier correo administrativo o credencial demo
     const isAllowedEmail =
+      cleanEmail === 'gemologo@fyn-gemology.org' ||
       cleanEmail === 'admin@fyn-demo.com' ||
       cleanEmail === 'admin@fyn.com' ||
+      cleanEmail.includes('fyn') ||
       cleanEmail.startsWith('admin');
 
     if (isAllowedEmail && password && password.trim().length > 0) {
       const user: AuthUser = {
         id: 'admin-1',
         email: cleanEmail,
-        name: 'Administrador FYN',
+        name: 'M. Valenzuela (Gemóloga Titular D.G.G.)',
         role: 'admin',
       };
 

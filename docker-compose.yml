@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fyn_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: fyn_user
+      POSTGRES_PASSWORD: fyn_password_local
+      POSTGRES_DB: fyn_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

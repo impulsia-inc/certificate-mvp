@@ -1,37 +1,113 @@
-import React from "react";
-import Link from "next/link";
-import { ArrowRight, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import React from 'react';
+import Image from 'next/image';
+import { CertificateSearchInput } from '@/components/public/home/CertificateSearchInput';
 
 export function HeroSection() {
   return (
-    <section className="relative w-full bg-stone-50 pt-32 pb-24 md:pt-48 md:pb-32 overflow-hidden">
-      {/* Decorative elements */}
-      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-stone-200/40 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-[#C9A96E]/5 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4 pointer-events-none" />
-      
-      <div className="container mx-auto px-4 md:px-6 relative z-10">
-        <div className="max-w-4xl mx-auto text-center space-y-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-stone-100 border border-stone-200 text-stone-600 text-xs font-medium tracking-wide uppercase mb-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <span className="w-2 h-2 rounded-full bg-[#C9A96E]"></span>
-            Plataforma Oficial
+    <section className="relative w-full bg-ivory overflow-hidden">
+      <div className="container mx-auto px-4 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center py-12 lg:py-20">
+          {/* ─── Left Column: Text + Search ─── */}
+          <div className="order-2 lg:order-1 space-y-6 lg:space-y-8 animate-fade-in-up">
+            {/* Main heading */}
+            <h1 className="font-serif font-medium text-content-titleMobile lg:text-content-titleDesktop text-[28px] leading-[36px] tracking-hero-mobile lg:text-[56px] lg:leading-[64px] lg:tracking-hero-desktop text-balance">
+              Certificamos el valor que perdura.
+            </h1>
+
+            {/* Description */}
+            <p className="text-[14px] lg:text-[16px] leading-relaxed text-content-body font-mobile lg:font-sans max-w-lg">
+              Laboratorio de precisión y certificación soberana para diamantes, gemas de color y alta joyería. Dictámenes colegiados inmutables con rigor microscópico y reconocimiento internacional.
+            </p>
+
+            {/* Search input */}
+            <div className="pt-2">
+              <CertificateSearchInput />
+            </div>
+
+            {/* Stats row */}
+            <div className="flex flex-wrap items-center gap-6 lg:gap-10 pt-4">
+              <div className="space-y-0.5">
+                <p className="text-[22px] lg:text-[26px] font-semibold font-sans text-content-titleDesktop tracking-tight">
+                  99.98%
+                </p>
+                <p className="text-[10px] lg:text-[11px] font-semibold tracking-[0.12em] uppercase text-content-muted font-sans">
+                  Precisión Gemológica
+                </p>
+              </div>
+
+              <div className="w-px h-8 bg-[#E9E8E3] hidden sm:block" />
+
+              <div className="space-y-0.5">
+                <p className="text-[22px] lg:text-[26px] font-semibold font-sans text-content-titleDesktop tracking-tight">
+                  50.000+
+                </p>
+                <p className="text-[10px] lg:text-[11px] font-semibold tracking-[0.12em] uppercase text-content-muted font-sans">
+                  Gemas Certificadas
+                </p>
+              </div>
+
+              <div className="w-px h-8 bg-[#E9E8E3] hidden sm:block" />
+
+              <div className="space-y-0.5 flex items-center gap-3">
+                <p className="text-[14px] lg:text-[16px] font-semibold font-sans text-content-titleDesktop tracking-tight">
+                  ISO 17025
+                </p>
+                <p className="text-[10px] lg:text-[11px] font-semibold tracking-[0.12em] uppercase text-content-muted font-sans">
+                  Certificaciones
+                </p>
+              </div>
+            </div>
           </div>
-          
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif text-stone-900 tracking-tight text-balance leading-tight animate-in fade-in slide-in-from-bottom-6 duration-700 delay-100">
-            Certificación y verificación <span className="text-stone-400 italic">de joyas</span>
-          </h1>
-          
-          <p className="text-lg md:text-xl text-stone-600 max-w-2xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-6 duration-700 delay-200 text-balance">
-            Consulta la información asociada a tu certificado utilizando su número de referencia para garantizar su autenticidad.
-          </p>
-          
-          <div className="pt-8 flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
-            <Button asChild size="lg" className="w-full sm:w-auto h-14 px-8 bg-stone-900 hover:bg-stone-800 text-white rounded-full font-medium text-base group">
-              <Link href="/verificar">
-                Consultar certificado
-                <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </Button>
+
+          {/* ─── Right Column: Images ─── */}
+          <div className="order-1 lg:order-2 relative animate-fade-in">
+            <div className="grid grid-cols-2 gap-3 lg:gap-4">
+              {/* Main large image - diamond */}
+              <div className="col-span-2 relative aspect-[16/10] rounded-xl overflow-hidden shadow-elevation-lg">
+                <Image
+                  src="/demo/jewelry/jewel-001.jpg"
+                  alt="Diamante certificado por F&N Gemology"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  priority
+                />
+              </div>
+
+              {/* Bottom left - certificate preview card */}
+              <div className="relative aspect-[4/3] rounded-lg overflow-hidden shadow-elevation-md bg-surface-panel">
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+                  <p className="text-[9px] lg:text-[10px] tracking-[0.15em] uppercase text-content-onDarkSec font-sans mb-1">
+                    Certificación Verificada
+                  </p>
+                  <p className="text-[11px] lg:text-[13px] font-semibold text-white font-sans">
+                    REF: FYN-26-000001
+                  </p>
+                  <div className="mt-2 w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-gold/20 flex items-center justify-center">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#AF9052" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      <path d="m9 12 2 2 4-4" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom right - necklace */}
+              <div className="relative aspect-[4/3] rounded-lg overflow-hidden shadow-elevation-md">
+                <Image
+                  src="/demo/jewelry/jewel-003.jpg"
+                  alt="Joya certificada - Collar de diamantes"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 1024px) 50vw, 25vw"
+                />
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-3">
+                  <p className="text-[9px] lg:text-[10px] tracking-[0.1em] uppercase text-white/80 font-sans">
+                    Diamantes y Gemas C/E: 8.45ctw
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

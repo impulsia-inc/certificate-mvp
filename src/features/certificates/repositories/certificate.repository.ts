@@ -1,9 +1,10 @@
-import type { Certificate, CertificateDetail, CertificateWithJewelry, CertificateFilters, CertificateFile, CreateCertificateInput, UpdateCertificateInput } from '@/types';
+import type { Certificate, CertificateDetail, CertificateWithJewelry, CertificateFilters, CertificateFile, CreateCertificateInput, UpdateCertificateInput, PaginatedResult } from '@/types';
 
 export interface CertificateRepository {
   findByReference(reference: string): Promise<CertificateDetail | null>;
   findById(id: string): Promise<CertificateDetail | null>;
   findAll(filters?: CertificateFilters): Promise<CertificateWithJewelry[]>;
+  findPaginated(filters?: CertificateFilters): Promise<PaginatedResult<CertificateWithJewelry>>;
   create(input: CreateCertificateInput): Promise<Certificate>;
   update(id: string, input: UpdateCertificateInput): Promise<Certificate>;
   revoke(id: string): Promise<Certificate>;

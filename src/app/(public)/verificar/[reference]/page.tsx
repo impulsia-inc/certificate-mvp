@@ -1,18 +1,26 @@
-import { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft, AlertTriangle, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { CertificateDetails } from "@/components/certificates/certificate-details";
-import { ErrorState } from "@/components/shared/error-state";
-import { lookupCertificate } from "@/features/certificates/actions/certificate.actions";
+import { Metadata } from 'next';
+import Link from 'next/link';
+import { ArrowLeft, SearchX, HelpCircle } from 'lucide-react';
+import { CertificateDetails } from '@/components/certificates/certificate-details';
+import { VerificationSearchBar } from '@/components/public/verification-search-bar';
+import { lookupCertificate } from '@/features/certificates/actions/certificate.actions';
 
-export const metadata: Metadata = {
-  title: "Resultado de Verificación",
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ reference: string }>;
+}): Promise<Metadata> {
+  const { reference } = await params;
+  const decodedRef = decodeURIComponent(reference || '').trim().toUpperCase();
+  return {
+    title: `Verificación ${decodedRef} | F&N Gemology`,
+    description: `Consulta oficial y validación pericial de la certificación ${decodedRef} emitida por F&N Gemology.`,
+    robots: {
+      index: false,
+      follow: false,
+    },
+  };
+}
 
 export default async function VerificarResultPage({
   params,
@@ -20,72 +28,86 @@ export default async function VerificarResultPage({
   params: Promise<{ reference: string }>;
 }) {
   const { reference } = await params;
-  const decodedRef = decodeURIComponent(reference).trim().toUpperCase();
+  const decodedRef = decodeURIComponent(reference || '').trim().toUpperCase();
 
   const result = await lookupCertificate(decodedRef);
 
   return (
-    <div className="min-h-[80vh] py-12 md:py-24">
-      <div className="container mx-auto px-4 md:px-6 max-w-5xl">
-        <div className="mb-8">
-          <Button asChild variant="ghost" className="text-stone-500 hover:text-stone-900 pl-0">
-            <Link href="/verificar">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Volver a buscar
-            </Link>
-          </Button>
+    <div className="w-full bg-ivory min-h-screen py-10 lg:py-16">
+      <div className="container mx-auto px-4 lg:px-8 max-w-6xl">
+        {/* Navigation Breadcrumb */}
+        <div className="mb-6">
+          <Link
+            href="/verificar"
+            className="inline-flex items-center gap-2 text-[12px] font-semibold tracking-wide uppercase text-content-muted hover:text-content-titleDesktop transition-colors font-sans"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Volver a la búsqueda general</span>
+          </Link>
         </div>
 
-        {!result.success || !result.data ? (
-          <div className="bg-white rounded-xl border border-stone-200 p-8 shadow-sm animate-fade-in">
-            <ErrorState
-              title="Certificado no encontrado"
-              description={`No se encontró ningún certificado con la referencia "${decodedRef}". Verifica que hayas ingresado el número correctamente.`}
-              action={
-                <Button asChild className="bg-stone-900 hover:bg-stone-800 text-white">
-                  <Link href="/verificar">Intentar nuevamente</Link>
-                </Button>
-              }
-            />
+        {/* ─── 1. BUSCADOR SUPERIOR DE VERIFICACIÓN ─── */}
+        <div className="text-center max-w-3xl mx-auto mb-10 lg:mb-14 space-y-4">
+          <span className="text-[10px] lg:text-[11px] font-semibold tracking-[0.2em] uppercase text-gold font-sans block">
+            Laboratorio & Verificación Pericial
+          </span>
+          <h1 className="font-serif font-medium text-[26px] leading-[34px] lg:text-[38px] lg:leading-[46px] tracking-title-desktop text-content-titleDesktop text-balance">
+            Verificación Oficial de Certificado Gemológico
+          </h1>
+          <p className="text-[13px] lg:text-[15px] text-content-body font-sans max-w-xl mx-auto leading-relaxed">
+            Consulte y valide la autenticidad pericial de dictámenes de gemología y alta joyería emitidos por nuestro laboratorio.
+          </p>
+
+          <div className="pt-2">
+            <VerificationSearchBar initialValue={decodedRef} showBadges={true} />
           </div>
-        ) : result.data.status === "revoked" ? (
-          <div className="bg-white rounded-xl border border-rose-200 p-12 shadow-sm flex flex-col items-center text-center animate-fade-in">
-            <div className="w-20 h-20 rounded-full bg-rose-50 flex items-center justify-center mb-6">
-              <AlertTriangle className="w-10 h-10 text-rose-500" strokeWidth={1.5} />
+        </div>
+
+        {/* ─── 2. RESULTADO DE VERIFICACIÓN ─── */}
+        {!result.success || !result.data ? (
+          /* Estado No Encontrado */
+          <div className="bg-white rounded-xl border border-[#E9E8E3] p-8 lg:p-12 shadow-elevation-sm max-w-2xl mx-auto text-center space-y-6 animate-fade-in">
+            <div className="w-16 h-16 rounded-full bg-amber-50 border border-amber-200/80 flex items-center justify-center mx-auto text-amber-700">
+              <SearchX className="w-8 h-8" />
             </div>
-            <h2 className="text-2xl md:text-3xl font-light text-rose-600 tracking-editorial mb-4">
-              CERTIFICACIÓN NO VÁLIDA
-            </h2>
-            <p className="text-stone-600 text-lg max-w-md mb-8">
-              Esta certificación se encuentra actualmente anulada.
-            </p>
-            <div className="text-sm text-stone-500 bg-stone-50 p-4 rounded-lg border border-stone-200">
-              <p className="mb-1">
-                <span className="font-medium text-stone-700">Referencia:</span>{" "}
-                <span className="font-mono">{decodedRef}</span>
+
+            <div className="space-y-2">
+              <h2 className="font-serif font-medium text-[22px] lg:text-[26px] text-content-titleDesktop">
+                Certificado No Encontrado
+              </h2>
+              <p className="text-[14px] text-content-body font-sans leading-relaxed max-w-md mx-auto">
+                No se encontró ningún registro oficial con la referencia{' '}
+                <span className="font-mono font-semibold text-content-titleDesktop bg-surface-alt px-2 py-0.5 rounded border border-[#E9E8E3]">
+                  {decodedRef}
+                </span>
+                .
               </p>
-              <p>
-                Por razones de seguridad, los detalles de la pieza no están disponibles.
-              </p>
+            </div>
+
+            <div className="bg-surface-alt/70 p-4 rounded-lg border border-[#E9E8E3] text-left text-[12px] text-content-body font-sans space-y-2">
+              <div className="flex items-center gap-2 font-semibold text-content-titleDesktop uppercase tracking-wider text-[11px]">
+                <HelpCircle className="w-4 h-4 text-gold shrink-0" />
+                <span>Recomendaciones de búsqueda:</span>
+              </div>
+              <ul className="list-disc list-inside space-y-1 text-content-muted pl-1">
+                <li>Verifique la referencia en la esquina superior del certificado físico (Ej. FYN-26-000001).</li>
+                <li>Asegúrese de incluir los guiones y el año correspondiente.</li>
+                <li>Si adquirió su pieza recientemente, el registro puede tardar hasta 24 horas en indexarse.</li>
+              </ul>
+            </div>
+
+            <div className="pt-2">
+              <Link
+                href="/verificar"
+                className="inline-flex items-center justify-center h-11 px-6 bg-brandBlue-action hover:bg-brandBlue-action/90 text-white text-[12px] font-semibold tracking-[0.1em] uppercase font-sans rounded-lg transition-all"
+              >
+                Nueva Consulta
+              </Link>
             </div>
           </div>
         ) : (
-          <div className="animate-fade-in-up">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center">
-                <ShieldCheck className="w-5 h-5 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide-caps text-emerald-600 font-medium">
-                  Certificado verificado
-                </p>
-                <p className="text-stone-500 text-sm">
-                  La siguiente certificación se encuentra activa y vigente.
-                </p>
-              </div>
-            </div>
-            <CertificateDetails certificate={result.data} />
-          </div>
+          /* Certificado Encontrado (Activo o Revocado) */
+          <CertificateDetails certificate={result.data} />
         )}
       </div>
     </div>

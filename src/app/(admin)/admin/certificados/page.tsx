@@ -1,24 +1,50 @@
-import { PageHeader } from '@/components/shared/page-header';
-import { listCertificates } from '@/features/certificates/actions/certificate.actions';
-import { CertificateTable } from '@/components/certificates/certificate-table';
+import { Metadata } from 'next';
+import {
+  getDashboardStats,
+  listCertificatesPaginated,
+} from '@/features/certificates/actions/certificate.actions';
+import { CertificateManagementView } from '@/components/admin/certificate-management-view';
+import type { JewelryCategory, CertificateStatus } from '@/types';
 
-export const metadata = {
-  title: 'Certificaciones | FYN',
+export const metadata: Metadata = {
+  title: 'Certificaciones | FYN Core',
+  description: 'Gestión y expedición técnica de certificados gemológicos oficiales.',
 };
 
-export default async function CertificatesPage() {
-  const result = await listCertificates();
-  const certificates = result.success ? result.data : [];
+export default async function CertificatesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    search?: string;
+    category?: string;
+    status?: string;
+    page?: string;
+  }>;
+}) {
+  const params = await searchParams;
+  const page = parseInt(params.page || '1', 10);
+  const search = params.search || undefined;
+  const category = (params.category as JewelryCategory) || undefined;
+  const status = (params.status as CertificateStatus) || undefined;
 
-  return (
-    <div className="space-y-6">
-      <PageHeader 
-        title="Certificaciones" 
-        description="Gestiona todas las certificaciones de la plataforma"
-        action={{ label: 'Nueva certificación', href: '/admin/certificados/nuevo' }}
-      />
-      
-      <CertificateTable data={certificates} />
-    </div>
-  );
+  const [statsResult, paginatedResult] = await Promise.all([
+    getDashboardStats(),
+    listCertificatesPaginated({
+      search,
+      category,
+      status,
+      page,
+      pageSize: 10,
+    }),
+  ]);
+
+  const stats = statsResult.success
+    ? statsResult.data
+    : { total: 0, active: 0, revoked: 0, draft: 0 };
+
+  const paginatedData = paginatedResult.success
+    ? paginatedResult.data
+    : { data: [], total: 0, page: 1, pageSize: 10 };
+
+  return <CertificateManagementView initialData={paginatedData} stats={stats} />;
 }
