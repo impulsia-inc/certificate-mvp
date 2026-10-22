@@ -5,7 +5,8 @@ export interface FileUploadResult {
 }
 
 export interface StorageService {
-  upload(file: File, path: string): Promise<FileUploadResult>;
+  upload(file: File, folder: string): Promise<FileUploadResult>;
+  uploadBuffer(buffer: Buffer, filename: string, folder: string, mimeType: string): Promise<FileUploadResult>;
   getUrl(storageKey: string): string;
   delete(storageKey: string): Promise<void>;
 }

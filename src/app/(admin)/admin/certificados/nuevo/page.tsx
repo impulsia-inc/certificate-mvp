@@ -1,23 +1,25 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { PageHeader } from '@/components/shared/page-header';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { CertificateForm } from '@/components/certificates/certificate-form';
-import { createCertificate } from '@/features/certificates/actions/certificate.actions';
 
 export default function NewCertificatePage() {
-  const router = useRouter();
-
-  const handleSubmit = async (data: any) => {
-    await createCertificate(data);
-    router.push('/admin/certificados');
-    router.refresh();
-  };
-
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-12">
-      <PageHeader title="Nueva Certificación" backHref="/admin/certificados" />
-      <CertificateForm onSubmit={handleSubmit} />
+    <div className="space-y-6 max-w-6xl mx-auto pb-8">
+      {/* Breadcrumb Header */}
+      <div className="flex items-center justify-between">
+        <Link
+          href="/admin/certificados"
+          className="inline-flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-stone-500 hover:text-stone-800 transition-colors font-sans"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Volver al panel de certificados</span>
+        </Link>
+      </div>
+
+      {/* Main Form */}
+      <CertificateForm />
     </div>
   );
 }

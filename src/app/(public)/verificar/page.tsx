@@ -1,84 +1,92 @@
-"use client";
+import React from 'react';
+import { Metadata } from 'next';
+import Image from 'next/image';
+import Link from 'next/link';
+import { FileSearch, ShieldCheck, Sparkles, HelpCircle } from 'lucide-react';
+import { VerificationSearchBar } from '@/components/public/verification-search-bar';
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
-import { ShieldCheck, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+export const metadata: Metadata = {
+  title: 'Consultar Certificado | F&N Gemology',
+  description:
+    'Valide la autenticidad de su certificado gemológico y pericial emitido por F&N Gemology con su número de referencia único.',
+};
+
+const DEMO_REFERENCES = [
+  { ref: 'FYN-26-000001', name: 'Anillo Diamante Solitario 0.35ct' },
+  { ref: 'FYN-26-000003', name: 'Pulsera Esmeralda Colombiana 1.2ct' },
+  { ref: 'FYN-26-000004', name: 'Aretes Zafiro Azul 0.8ct' },
+];
 
 export default function VerificarPage() {
-  const router = useRouter();
-  const [reference, setReference] = useState("");
-  const [error, setError] = useState("");
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (!reference.trim()) {
-      setError("Por favor ingresa un número de referencia.");
-      return;
-    }
-
-    // Basic format validation could go here, e.g., FYN-xx-xxxxxx
-    // But we'll just redirect and let the server component handle exact matches
-
-    router.push(`/verificar/${encodeURIComponent(reference.trim())}`);
-  };
-
   return (
-    <div className="flex-1 flex items-center justify-center py-24 md:py-32 px-4 bg-stone-50">
-      <div className="max-w-xl w-full">
-        <div className="text-center mb-10">
-          <div className="w-16 h-16 bg-white border border-stone-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
-            <ShieldCheck className="w-8 h-8 text-[#C9A96E]" strokeWidth={1.5} />
+    <div className="flex-1 bg-ivory py-16 lg:py-24">
+      <div className="container mx-auto px-4 lg:px-8 max-w-4xl">
+        {/* Header Block */}
+        <div className="text-center space-y-4 mb-10 lg:mb-12">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-[#E9E8E3] shadow-elevation-sm mx-auto mb-2">
+            <div className="relative w-5 h-5 shrink-0">
+              <Image
+                src="/uploads/fyn_logo.png"
+                alt="F&N Gemology"
+                fill
+                className="object-contain"
+              />
+            </div>
+            <span className="text-[11px] font-semibold tracking-[0.15em] uppercase text-gold font-sans">
+              Validación Soberana de Certificaciones
+            </span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-serif text-stone-900 tracking-tight mb-4">
-            Verificar Certificado
+
+          <h1 className="font-serif font-medium text-[30px] leading-[38px] lg:text-[46px] lg:leading-[54px] tracking-title-desktop text-content-titleDesktop text-balance">
+            Verificación Oficial de Certificado
           </h1>
-          <p className="text-stone-500 text-lg max-w-md mx-auto text-balance">
-            Ingresa el número de referencia de tu certificado para consultar su información.
+
+          <p className="text-[14px] lg:text-[16px] text-content-body font-sans max-w-xl mx-auto leading-relaxed">
+            Ingrese el número de referencia asignado a su joya o gema para consultar su dictamen
+            gemológico inmutable y descargar el certificado pericial oficial.
           </p>
         </div>
 
-        <div className="bg-white p-8 md:p-10 rounded-2xl border border-stone-200 shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <label htmlFor="reference" className="text-sm font-medium text-stone-700">
-                Número de Referencia
-              </label>
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 w-5 h-5" />
-                <Input
-                  id="reference"
-                  type="text"
-                  placeholder="Ej. FYN-26-000001"
-                  value={reference}
-                  onChange={(e) => setReference(e.target.value)}
-                  className="pl-12 h-14 text-lg border-stone-200 focus-visible:ring-[#C9A96E] bg-stone-50/50"
-                  autoComplete="off"
-                  autoFocus
-                />
-              </div>
-              {error && (
-                <p className="text-rose-500 text-sm mt-2 font-medium">{error}</p>
-              )}
+        {/* Card Buscador */}
+        <div className="bg-white rounded-2xl border border-[#E9E8E3] p-6 lg:p-10 shadow-elevation-md space-y-8">
+          <VerificationSearchBar showBadges={true} />
+
+          {/* Referencias Rápidas de Demostración */}
+          <div className="pt-6 border-t border-[#E9E8E3] space-y-3">
+            <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.12em] uppercase text-content-muted font-sans">
+              <Sparkles className="w-3.5 h-3.5 text-gold" />
+              <span>Referencias de demostración para consulta:</span>
             </div>
 
-            <Button
-              type="submit"
-              className="w-full h-14 bg-stone-900 hover:bg-stone-800 text-white text-base rounded-xl"
-            >
-              <ShieldCheck className="w-5 h-5 mr-2" />
-              Verificar certificado
-            </Button>
-          </form>
+            <div className="flex flex-wrap gap-2.5">
+              {DEMO_REFERENCES.map((item) => (
+                <Link
+                  key={item.ref}
+                  href={`/verificar/${item.ref}`}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-surface-alt hover:bg-surface-sec border border-[#E9E8E3] text-[12px] font-mono text-content-titleDesktop hover:border-gold/40 transition-all font-medium"
+                >
+                  <span className="text-gold font-semibold">{item.ref}</span>
+                  <span className="text-content-muted font-sans text-[11px] hidden sm:inline">
+                    — {item.name}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
 
-          <div className="mt-8 pt-8 border-t border-stone-100 text-center">
-            <p className="text-sm text-stone-500">
-              ¿No encuentras tu número de referencia? <br />
-              <span className="text-stone-400">Revisa la esquina superior derecha de tu documento físico.</span>
-            </p>
+          {/* Ayuda y Soporte */}
+          <div className="bg-ivory rounded-xl p-4 border border-[#E9E8E3] flex items-start gap-3 text-[12px] text-content-body font-sans leading-relaxed">
+            <HelpCircle className="w-4 h-4 text-gold shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-content-titleDesktop">
+                ¿Dónde encontrar su número de referencia?
+              </p>
+              <p className="text-content-muted text-[11px] mt-0.5">
+                Revise la esquina superior derecha de su tarjeta física o dictamen emitido por F&N
+                Gemology. El formato estándar corresponde a{' '}
+                <span className="font-mono text-content-titleDesktop">FYN-YY-NNNNNN</span>.
+              </p>
+            </div>
           </div>
         </div>
       </div>

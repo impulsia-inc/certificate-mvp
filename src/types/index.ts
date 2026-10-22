@@ -1,6 +1,13 @@
 // Certificate status
 export type CertificateStatus = 'draft' | 'active' | 'revoked';
 
+// Certificate type
+export type CertificateType = 'stone' | 'jewelry';
+
+// Primary & Additional stone type
+export type PrimaryStoneType = 'diamond' | 'colored_gem';
+export type AdditionalStoneType = 'diamond' | 'colored_gem';
+
 // Certificate file type  
 export type CertificateFileType = 'certificate_pdf' | 'jewelry_image' | 'additional_document';
 
@@ -11,8 +18,9 @@ export type JewelryCategory = 'Anillo' | 'Cadena' | 'Pulsera' | 'Aretes' | 'Coll
 export interface Certificate {
   id: string;
   reference: string;
+  certificateType?: CertificateType;
   certificateNumber?: string;
-  jewelryId: string;
+  jewelryId?: string | null;
   status: CertificateStatus;
   issuedAt: string;
   createdAt: string;
@@ -24,14 +32,17 @@ export interface Certificate {
 export interface Jewelry {
   id: string;
   name: string;
-  category: JewelryCategory;
+  category: JewelryCategory | string;
   description?: string;
   material?: string;
   metalType?: string;
   purity?: string;
+  grossWeight?: number;
   weight?: number;
   weightUnit?: string;
   serialNumber?: string;
+  comments?: string;
+  // Gemological convenience / legacy fields
   stoneType?: string;
   stoneWeight?: number;
   stoneColor?: string;
@@ -40,10 +51,46 @@ export interface Jewelry {
   model?: string;
 }
 
+export interface GemologicalDetail {
+  id?: string;
+  certificateId?: string;
+  stoneKind: PrimaryStoneType;
+  nature?: string;
+  variety?: string;
+  shapeAndCut?: string;
+  measurements?: string;
+  weight?: number;
+  color?: string;
+  cutGrade?: string;
+  clarityGrade?: string;
+  fluorescence?: string;
+  polish?: string;
+  symmetry?: string;
+  proportions?: string;
+  transparency?: string;
+  treatment?: string;
+}
+
+export interface AdditionalStone {
+  id?: string;
+  certificateId?: string;
+  stoneKind: AdditionalStoneType;
+  nature?: string;
+  variety?: string;
+  totalStones?: number;
+  shapeAndCut?: string;
+  measurements?: string;
+  estimatedWeight?: number;
+  estimatedColor?: string;
+  estimatedClarity?: string;
+}
+
 export interface CertificateFile {
   id: string;
   certificateId: string;
   type: CertificateFileType;
+  role?: string;
+  displayOrder?: number;
   storageKey: string;
   originalName: string;
   mimeType: string;
@@ -64,17 +111,25 @@ export interface AuditLog {
 // Composite types for views
 export interface CertificateWithJewelry extends Certificate {
   jewelry: Jewelry;
+  thumbnailUrl?: string;
+  secondaryThumbnailUrl?: string;
+  hash?: string;
+  gemologist?: string;
 }
 
 export interface CertificateDetail extends CertificateWithJewelry {
   files: CertificateFile[];
+  gemologicalDetail?: GemologicalDetail | null;
+  additionalStones?: AdditionalStone[];
 }
 
 // Query/filter types
 export interface CertificateFilters {
   search?: string;
-  status?: CertificateStatus;
-  category?: JewelryCategory;
+  status?: CertificateStatus | 'all';
+  category?: JewelryCategory | 'Diamante' | 'Joya' | 'all' | string;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface PaginatedResult<T> {
@@ -89,6 +144,7 @@ export interface CreateCertificateInput {
   jewelry: Omit<Jewelry, 'id'>;
   status: CertificateStatus;
   issuedAt: string;
+  certificateType?: CertificateType;
   certificateNumber?: string;
 }
 
@@ -98,3 +154,4 @@ export interface UpdateCertificateInput {
   issuedAt?: string;
   certificateNumber?: string;
 }
+

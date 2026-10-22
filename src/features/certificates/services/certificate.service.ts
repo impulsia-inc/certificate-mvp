@@ -1,5 +1,5 @@
 import { getCertificateRepository } from '../repositories';
-import type { CertificateDetail, CertificateWithJewelry, CertificateFilters, CreateCertificateInput, UpdateCertificateInput, Certificate } from '@/types';
+import type { CertificateDetail, CertificateWithJewelry, CertificateFilters, CreateCertificateInput, UpdateCertificateInput, Certificate, PaginatedResult } from '@/types';
 
 export class CertificateService {
   private repo = getCertificateRepository();
@@ -16,6 +16,10 @@ export class CertificateService {
 
   async listCertificates(filters?: CertificateFilters): Promise<CertificateWithJewelry[]> {
     return this.repo.findAll(filters);
+  }
+
+  async listCertificatesPaginated(filters?: CertificateFilters): Promise<PaginatedResult<CertificateWithJewelry>> {
+    return this.repo.findPaginated(filters);
   }
 
   async createCertificate(input: CreateCertificateInput): Promise<Certificate> {

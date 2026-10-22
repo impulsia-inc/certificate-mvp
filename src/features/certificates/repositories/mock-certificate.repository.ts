@@ -1,5 +1,5 @@
 import { CertificateRepository } from './certificate.repository';
-import type { Certificate, CertificateDetail, CertificateWithJewelry, CertificateFilters, CertificateFile, CreateCertificateInput, UpdateCertificateInput, Jewelry } from '@/types';
+import type { Certificate, CertificateDetail, CertificateWithJewelry, CertificateFilters, CertificateFile, CreateCertificateInput, UpdateCertificateInput, Jewelry, PaginatedResult } from '@/types';
 import { mockCertificates, mockJewelry, mockCertificateFiles } from '@/data/mock/certificates';
 import { generateReference } from '@/lib/reference/generator';
 
@@ -25,10 +25,10 @@ export class MockCertificateRepository implements CertificateRepository {
     let filtered = certificates.map(c => this.buildWithJewelry(c));
 
     if (filters) {
-      if (filters.status) {
+      if (filters.status && filters.status !== 'all') {
         filtered = filtered.filter(c => c.status === filters.status);
       }
-      if (filters.category) {
+      if (filters.category && filters.category !== 'all') {
         filtered = filtered.filter(c => c.jewelry.category === filters.category);
       }
       if (filters.search) {
@@ -41,6 +41,16 @@ export class MockCertificateRepository implements CertificateRepository {
     }
 
     return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async findPaginated(filters?: CertificateFilters): Promise<PaginatedResult<CertificateWithJewelry>> {
+    const all = await this.findAll(filters);
+    const page = Math.max(1, filters?.page ?? 1);
+    const pageSize = Math.max(1, filters?.pageSize ?? 10);
+    const total = all.length;
+    const offset = (page - 1) * pageSize;
+    const data = all.slice(offset, offset + pageSize);
+    return { data, total, page, pageSize };
   }
 
   async create(input: CreateCertificateInput): Promise<Certificate> {
@@ -150,7 +160,16 @@ export class MockCertificateRepository implements CertificateRepository {
   private buildWithJewelry(cert: Certificate): CertificateWithJewelry {
     const jewelry = jewelryItems.find(j => j.id === cert.jewelryId);
     if (!jewelry) throw new Error(`Jewelry missing for cert ${cert.id}`);
-    return { ...cert, jewelry };
+    const imgFile = certificateFiles.find(f => f.certificateId === cert.id && f.type === 'jewelry_image');
+    const hexPart = cert.id.replace(/-/g, '').slice(0, 8).toUpperCase();
+    const lastPart = cert.id.replace(/-/g, '').slice(-4).toUpperCase();
+    return {
+      ...cert,
+      jewelry,
+      thumbnailUrl: imgFile?.storageKey,
+      hash: `${hexPart}...${lastPart}`,
+      gemologist: cert.createdBy || 'M. Valenzuela (D.G.G.)',
+    };
   }
 
   private buildDetail(cert: Certificate): CertificateDetail {
