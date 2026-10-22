@@ -1,5 +1,18 @@
 import { z } from 'zod';
 
+const optionalNumberSchema = z
+  .number({ invalid_type_error: 'Debe ser un número válido' })
+  .positive('El valor debe ser positivo')
+  .optional()
+  .nullable();
+
+const optionalIntSchema = z
+  .number({ invalid_type_error: 'Debe ser un número válido' })
+  .int('Debe ser un número entero')
+  .positive('El valor debe ser positivo')
+  .optional()
+  .nullable();
+
 export const certificateFormSchema = z
   .object({
     certificateType: z.enum(['stone', 'jewelry'], {
@@ -21,7 +34,7 @@ export const certificateFormSchema = z
         material: z.string().optional(),
         metalType: z.string().optional(),
         purity: z.string().optional(),
-        grossWeight: z.number().positive('El peso bruto debe ser positivo').optional(),
+        grossWeight: optionalNumberSchema,
         weightUnit: z.string().optional(),
         serialNumber: z.string().optional(),
         comments: z.string().optional(),
@@ -34,7 +47,7 @@ export const certificateFormSchema = z
         nature: z.string().optional(),
         shapeAndCut: z.string().optional(),
         measurements: z.string().optional(),
-        weight: z.number().positive('El peso en quilates debe ser positivo').optional(),
+        weight: optionalNumberSchema,
         color: z.string().optional(),
         clarityGrade: z.string().optional(),
         cutGrade: z.string().optional(),
@@ -56,10 +69,10 @@ export const certificateFormSchema = z
     additionalDiamonds: z
       .object({
         nature: z.string().optional(),
-        totalStones: z.number().int().positive().optional(),
+        totalStones: optionalIntSchema,
         shapeAndCut: z.string().optional(),
         measurements: z.string().optional(),
-        estimatedWeight: z.number().positive().optional(),
+        estimatedWeight: optionalNumberSchema,
         estimatedColor: z.string().optional(),
         estimatedClarity: z.string().optional(),
       })
@@ -72,7 +85,7 @@ export const certificateFormSchema = z
         variety: z.string().optional(),
         shapeAndCut: z.string().optional(),
         measurements: z.string().optional(),
-        weight: z.number().positive('El peso en quilates debe ser positivo').optional(),
+        weight: optionalNumberSchema,
         color: z.string().optional(),
         transparency: z.string().optional(),
         cutGrade: z.string().optional(),
@@ -86,35 +99,32 @@ export const certificateFormSchema = z
       .object({
         nature: z.string().optional(),
         variety: z.string().optional(),
-        totalStones: z.number().int().positive().optional(),
+        totalStones: optionalIntSchema,
         shapeAndCut: z.string().optional(),
         measurements: z.string().optional(),
-        estimatedWeight: z.number().positive().optional(),
+        estimatedWeight: optionalNumberSchema,
         color: z.string().optional(),
       })
       .optional(),
   })
   .superRefine((data, ctx) => {
-    // Si es joya, el nombre y categoría son requeridos
-    if (data.certificateType === 'jewelry') {
-      if (!data.jewelry?.name || data.jewelry.name.trim().length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['jewelry', 'name'],
-          message: 'El nombre de la joya es requerido',
-        });
+    // Si es borrador, relajamos validaciones estrictas
+    if (data.status === 'draft') {
+      if (data.certificateType === 'jewelry') {
+        if (!data.jewelry?.name || data.jewelry.name.trim().length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['jewelry', 'name'],
+            message: 'El nombre de la joya es requerido para el borrador',
+          });
+        }
       }
-      if (!data.jewelry?.category || data.jewelry.category.trim().length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['jewelry', 'category'],
-          message: 'La categoría es requerida',
-        });
-      }
+      return;
     }
 
-    // Validación según tipo de reporte
+    // Validación estricta para emisión activa (status === 'active' | 'revoked')
     if (data.certificateType === 'jewelry') {
+      // 1. Campos obligatorios de Joya
       if (!data.jewelry?.name || data.jewelry.name.trim().length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -126,81 +136,85 @@ export const certificateFormSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['jewelry', 'category'],
-          message: 'La categoría es requerida',
+          message: 'La categoría de la joya es requerida',
         });
       }
-      if (!data.gemDetail?.nature) {
+
+      // 2. Campos obligatorios de la Gema de la Joya
+      if (!data.gemDetail?.nature || data.gemDetail.nature.trim().length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['gemDetail', 'nature'],
           message: 'La naturaleza de la gema es requerida',
         });
       }
-      if (!data.gemDetail?.variety) {
+      if (!data.gemDetail?.variety || data.gemDetail.variety.trim().length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['gemDetail', 'variety'],
           message: 'La variedad de la gema es requerida',
         });
       }
-      if (!data.gemDetail?.shapeAndCut) {
+      if (!data.gemDetail?.shapeAndCut || data.gemDetail.shapeAndCut.trim().length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['gemDetail', 'shapeAndCut'],
-          message: 'La forma y corte son requeridos',
+          message: 'La forma y corte de la gema son requeridos',
         });
       }
       if (data.gemDetail?.weight === undefined || data.gemDetail?.weight === null) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['gemDetail', 'weight'],
-          message: 'El peso en quilates es requerido',
+          message: 'El peso en quilates de la gema es requerido',
         });
       }
-      if (!data.gemDetail?.color) {
+      if (!data.gemDetail?.color || data.gemDetail.color.trim().length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['gemDetail', 'color'],
-          message: 'El color es requerido',
+          message: 'El color de la gema es requerido',
         });
       }
+      // Los campos de diamondDetail y diamondAdditionalInfo NO se validan para joyería
     } else {
-      // Reporte de Diamante
-      if (!data.diamondDetail?.nature) {
+      // Reporte de DIAMANTE (certificateType === 'stone')
+      if (!data.diamondDetail?.nature || data.diamondDetail.nature.trim().length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['diamondDetail', 'nature'],
           message: 'La naturaleza del diamante es requerida',
         });
       }
-      if (!data.diamondDetail?.shapeAndCut) {
+      if (!data.diamondDetail?.shapeAndCut || data.diamondDetail.shapeAndCut.trim().length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['diamondDetail', 'shapeAndCut'],
-          message: 'La forma y corte son requeridos',
+          message: 'La forma y corte del diamante son requeridos',
         });
       }
       if (data.diamondDetail?.weight === undefined || data.diamondDetail?.weight === null) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['diamondDetail', 'weight'],
-          message: 'El peso en quilates es requerido',
+          message: 'El peso en quilates del diamante es requerido',
         });
       }
-      if (!data.diamondDetail?.color) {
+      if (!data.diamondDetail?.color || data.diamondDetail.color.trim().length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['diamondDetail', 'color'],
-          message: 'El grado de color es requerido',
+          message: 'El grado de color del diamante es requerido',
         });
       }
-      if (!data.diamondDetail?.clarityGrade) {
+      if (!data.diamondDetail?.clarityGrade || data.diamondDetail.clarityGrade.trim().length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['diamondDetail', 'clarityGrade'],
-          message: 'El grado de pureza es requerido',
+          message: 'El grado de pureza del diamante es requerido',
         });
       }
+      // Los campos de jewelry y gemDetail NO se validan para diamantes
     }
   });
 

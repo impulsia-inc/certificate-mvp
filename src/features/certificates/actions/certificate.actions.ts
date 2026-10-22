@@ -104,6 +104,35 @@ export async function createCertificate(
   }
 }
 
+function sanitizeEmptyNumericFields(obj: unknown): unknown {
+  if (obj === null || obj === undefined) return undefined;
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeEmptyNumericFields);
+
+  const numericFields = new Set([
+    'grossWeight', 'weight', 'totalStones', 'estimatedWeight', 'stoneWeight'
+  ]);
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    if (numericFields.has(key)) {
+      if (value === '' || value === null || value === undefined || (typeof value === 'number' && isNaN(value))) {
+        sanitized[key] = undefined;
+      } else if (typeof value === 'string') {
+        const parsed = Number(value);
+        sanitized[key] = isNaN(parsed) ? undefined : parsed;
+      } else {
+        sanitized[key] = value;
+      }
+    } else if (typeof value === 'object' && value !== null) {
+      sanitized[key] = sanitizeEmptyNumericFields(value);
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
 export async function createCertificateAction(
   formData: FormData
 ): Promise<ActionResult<{ id: string; reference: string }>> {
@@ -114,8 +143,9 @@ export async function createCertificateAction(
     }
 
     const parsedData = JSON.parse(rawData) as CertificateFormData;
+    const sanitizedData = sanitizeEmptyNumericFields(parsedData);
     
-    const validation = certificateFormSchema.safeParse(parsedData);
+    const validation = certificateFormSchema.safeParse(sanitizedData);
     if (!validation.success) {
       const issue = validation.error.issues[0];
       return { 
@@ -391,8 +421,10 @@ export async function updateCertificateAction(
     // Force parsedData to strictly keep the original certificateType regardless of any attempt to change it
     parsedData.certificateType = originalType as 'stone' | 'jewelry';
 
+    const sanitizedData = sanitizeEmptyNumericFields(parsedData);
+
     // Validate with Zod
-    const validation = certificateFormSchema.safeParse(parsedData);
+    const validation = certificateFormSchema.safeParse(sanitizedData);
     if (!validation.success) {
       const issue = validation.error.issues[0];
       return { 

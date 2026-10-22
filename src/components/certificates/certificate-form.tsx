@@ -167,16 +167,17 @@ export function CertificateForm({ initialData, onSubmit }: CertificateFormProps)
   const handleTypeSelect = (type: 'stone' | 'jewelry') => {
     if (isEditMode) return;
     setValue('certificateType', type, { shouldValidate: true });
+    setSubmitError(null);
     if (type === 'stone') {
       setValue('stoneKind', 'diamond', { shouldValidate: true });
       setValue('hasAdditionalDiamonds', false);
       setIsAdditionalDiamondsOpen(false);
-      clearErrors(['jewelry.name', 'jewelry.category', 'gemDetail']);
+      clearErrors();
     } else {
       setValue('stoneKind', 'colored_gem', { shouldValidate: true });
       setValue('hasAdditionalGems', false);
       setIsAdditionalGemsOpen(false);
-      clearErrors(['diamondDetail']);
+      clearErrors();
     }
   };
 
@@ -240,14 +241,14 @@ export function CertificateForm({ initialData, onSubmit }: CertificateFormProps)
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
-  // Form submission handler
-  const handleSaveOrPublish = async (actionStatus: 'draft' | 'active') => {
+  // Real backend submission execution
+  const executeSubmission = async (actionStatus: 'draft' | 'active', validData: CertificateFormData) => {
     setIsSubmitting(true);
     setSubmitError(null);
     setSubmitSuccess(null);
 
     try {
-      const formDataValues = watch();
+      const formDataValues = { ...validData };
       formDataValues.status = actionStatus;
 
       // Ensure flags and kinds are consistent
@@ -317,9 +318,49 @@ export function CertificateForm({ initialData, onSubmit }: CertificateFormProps)
     }
   };
 
+  // Submit trigger with React Hook Form validation & diagnostic error logger
+  const handleTriggerSubmit = (actionStatus: 'draft' | 'active') => {
+    setValue('status', actionStatus, { shouldValidate: true });
+
+    handleSubmit(
+      async (validData) => {
+        setSubmitError(null);
+        await executeSubmission(actionStatus, validData);
+      },
+      (validationErrors) => {
+        console.error('❌ Errores de validación Zod al enviar:', validationErrors);
+
+        // Collect human-readable error messages for feedback banner
+        const errorList: string[] = [];
+        const collectErrors = (errObj: unknown) => {
+          if (!errObj || typeof errObj !== 'object') return;
+          const typedObj = errObj as Record<string, { message?: string } | unknown>;
+          for (const key of Object.keys(typedObj)) {
+            const val = typedObj[key];
+            if (val && typeof val === 'object' && 'message' in val && typeof (val as { message: unknown }).message === 'string') {
+              errorList.push((val as { message: string }).message);
+            } else if (val && typeof val === 'object') {
+              collectErrors(val);
+            }
+          }
+        };
+
+        collectErrors(validationErrors);
+        const uniqueMessages = Array.from(new Set(errorList));
+
+        const feedbackMessage = uniqueMessages.length > 0
+          ? `Por favor verifique los siguientes campos requeridos: ${uniqueMessages.join(' • ')}`
+          : 'Existen campos requeridos incompletos o inválidos en el formulario. Por favor revise los bloques marcados.';
+
+        setSubmitError(feedbackMessage);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    )();
+  };
+
   return (
     <>
-      <form onSubmit={(e) => e.preventDefault()} className="space-y-8 pb-32">
+      <form onSubmit={(e) => { e.preventDefault(); handleTriggerSubmit('active'); }} className="space-y-8 pb-32">
         {/* Error / Success Notifications */}
         {submitError && (
           <div className="p-4 bg-red-50 text-red-700 rounded-xl border border-red-200 flex items-start gap-3 shadow-sm animate-fade-in">
@@ -1082,6 +1123,149 @@ export function CertificateForm({ initialData, onSubmit }: CertificateFormProps)
         ═══════════════════════════════════════════════════════════════ */}
         {currentCertType === 'jewelry' && (
           <div className="space-y-8 animate-fade-in">
+            {/* 2. DESCRIPCIÓN GENERAL JOYA */}
+            <div className="bg-white rounded-2xl border border-[#E9E8E3] p-6 lg:p-8 shadow-elevation-sm space-y-6">
+              <div className="border-b border-[#E9E8E3] pb-4">
+                <h2 className="font-serif font-medium text-lg lg:text-xl text-content-titleDesktop">
+                  2. {t.sections.jewelry.title}
+                </h2>
+                <p className="text-xs text-content-body font-sans mt-0.5">
+                  {t.sections.jewelry.subtitle}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                {/* Nombre de la Joya */}
+                <div className="space-y-1.5 lg:col-span-2">
+                  <Label htmlFor="jewelry.name" className="text-xs font-semibold text-content-titleDesktop font-sans">
+                    {t.sections.jewelry.pieceName}
+                  </Label>
+                  <Input
+                    id="jewelry.name"
+                    {...register('jewelry.name')}
+                    placeholder={t.sections.jewelry.pieceNamePlaceholder}
+                    className={cn(
+                      'bg-surface-alt border-[#E9E8E3] focus-visible:ring-gold text-xs',
+                      errors.jewelry?.name && 'border-red-300 focus-visible:ring-red-400 bg-red-50/20'
+                    )}
+                  />
+                  {errors.jewelry?.name && (
+                    <p className="text-[11px] text-red-500 font-sans">{errors.jewelry.name.message}</p>
+                  )}
+                </div>
+
+                {/* Categoría */}
+                <div className="space-y-1.5 lg:col-span-2">
+                  <Label htmlFor="jewelry.category" className="text-xs font-semibold text-content-titleDesktop font-sans">
+                    {t.sections.jewelry.category}
+                  </Label>
+                  <select
+                    id="jewelry.category"
+                    {...register('jewelry.category')}
+                    className={cn(
+                      'w-full h-9 rounded-md border border-[#E9E8E3] bg-surface-alt px-3 py-1 text-xs text-content-titleDesktop shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold font-sans',
+                      errors.jewelry?.category && 'border-red-300 focus-visible:ring-red-400 bg-red-50/20'
+                    )}
+                  >
+                    <option value="">{t.sections.jewelry.categoryPlaceholder}</option>
+                    {t.options.categories.map((cat) => (
+                      <option key={cat.value} value={cat.value}>{cat.label}</option>
+                    ))}
+                  </select>
+                  {errors.jewelry?.category && (
+                    <p className="text-[11px] text-red-500 font-sans">{errors.jewelry.category.message}</p>
+                  )}
+                </div>
+
+                {/* Metal / Aleación */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="jewelry.metalType" className="text-xs font-semibold text-content-titleDesktop font-sans">
+                    {t.sections.jewelry.metal}
+                  </Label>
+                  <Input
+                    id="jewelry.metalType"
+                    {...register('jewelry.metalType')}
+                    placeholder={t.sections.jewelry.metalPlaceholder}
+                    className="bg-surface-alt border-[#E9E8E3] focus-visible:ring-gold text-xs"
+                  />
+                </div>
+
+                {/* Pureza */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="jewelry.purity" className="text-xs font-semibold text-content-titleDesktop font-sans">
+                    {t.sections.jewelry.purity}
+                  </Label>
+                  <Input
+                    id="jewelry.purity"
+                    {...register('jewelry.purity')}
+                    placeholder={t.sections.jewelry.purityPlaceholder}
+                    className="bg-surface-alt border-[#E9E8E3] focus-visible:ring-gold text-xs"
+                  />
+                </div>
+
+                {/* Peso Bruto Total */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="jewelry.grossWeight" className="text-xs font-semibold text-content-titleDesktop font-sans">
+                    {t.sections.jewelry.grossWeight}
+                  </Label>
+                  <Input
+                    id="jewelry.grossWeight"
+                    type="number"
+                    step="0.01"
+                    {...register('jewelry.grossWeight', {
+                      setValueAs: (v) => v === '' || v === null || isNaN(Number(v)) ? undefined : Number(v)
+                    })}
+                    placeholder={t.sections.jewelry.grossWeightPlaceholder}
+                    className="bg-surface-alt border-[#E9E8E3] focus-visible:ring-gold text-xs"
+                  />
+                  {errors.jewelry?.grossWeight && (
+                    <p className="text-[11px] text-red-500 font-sans">{errors.jewelry.grossWeight.message}</p>
+                  )}
+                </div>
+
+                {/* Unidad */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="jewelry.weightUnit" className="text-xs font-semibold text-content-titleDesktop font-sans">
+                    {t.sections.jewelry.weightUnit}
+                  </Label>
+                  <select
+                    id="jewelry.weightUnit"
+                    {...register('jewelry.weightUnit')}
+                    className="w-full h-9 rounded-md border border-[#E9E8E3] bg-surface-alt px-3 py-1 text-xs text-content-titleDesktop shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold font-sans"
+                  >
+                    <option value="g">g (Gramos)</option>
+                    <option value="ct">ct (Quilates)</option>
+                  </select>
+                </div>
+
+                {/* Número de serie */}
+                <div className="space-y-1.5 lg:col-span-2">
+                  <Label htmlFor="jewelry.serialNumber" className="text-xs font-semibold text-content-titleDesktop font-sans">
+                    {t.sections.jewelry.serialNumber}
+                  </Label>
+                  <Input
+                    id="jewelry.serialNumber"
+                    {...register('jewelry.serialNumber')}
+                    placeholder={t.sections.jewelry.serialNumberPlaceholder}
+                    className="bg-surface-alt border-[#E9E8E3] focus-visible:ring-gold text-xs"
+                  />
+                </div>
+
+                {/* Comentarios Periciales */}
+                <div className="space-y-1.5 lg:col-span-4">
+                  <Label htmlFor="jewelry.comments" className="text-xs font-semibold text-content-titleDesktop font-sans">
+                    {t.sections.jewelry.comments}
+                  </Label>
+                  <Textarea
+                    id="jewelry.comments"
+                    rows={3}
+                    {...register('jewelry.comments')}
+                    placeholder={t.sections.jewelry.commentsPlaceholder}
+                    className="bg-surface-alt border-[#E9E8E3] focus-visible:ring-gold text-xs resize-none"
+                  />
+                </div>
+              </div>
+            </div>
 
             {/* 3. GEMA DETALLES */}
             <div className="bg-white rounded-2xl border border-[#E9E8E3] p-6 lg:p-8 shadow-elevation-sm space-y-6">
@@ -1402,7 +1586,7 @@ export function CertificateForm({ initialData, onSubmit }: CertificateFormProps)
                 type="button"
                 variant="outline"
                 disabled={isSubmitting}
-                onClick={() => handleSaveOrPublish('draft')}
+                onClick={() => handleTriggerSubmit('draft')}
                 className="h-11 px-5 text-xs font-semibold tracking-wider font-sans border-[#E9E8E3] text-content-titleDesktop hover:bg-stone-50 transition-all cursor-pointer"
               >
                 {isSubmitting ? (
@@ -1428,14 +1612,9 @@ export function CertificateForm({ initialData, onSubmit }: CertificateFormProps)
               {/* 3. Emitir y Publicar Certificado */}
               <Button
                 type="button"
-                disabled={isSubmitting || !isValid}
-                onClick={() => handleSaveOrPublish('active')}
-                className={cn(
-                  'h-11 px-6 text-xs font-semibold tracking-wider font-sans rounded-lg shadow-btn-login transition-all text-white',
-                  isValid && !isSubmitting
-                    ? 'bg-brandBlue-action hover:bg-brandBlue-action/90 active:scale-[0.99] cursor-pointer'
-                    : 'bg-stone-300 text-stone-500 cursor-not-allowed'
-                )}
+                disabled={isSubmitting}
+                onClick={() => handleTriggerSubmit('active')}
+                className="h-11 px-6 text-xs font-semibold tracking-wider font-sans rounded-lg shadow-btn-login transition-all text-white bg-brandBlue-action hover:bg-brandBlue-action/90 active:scale-[0.99] cursor-pointer"
               >
                 {isSubmitting ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin text-white" />
