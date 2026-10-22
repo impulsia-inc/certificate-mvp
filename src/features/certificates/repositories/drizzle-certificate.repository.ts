@@ -1,4 +1,4 @@
-import { eq, or, and, ilike, desc, count, inArray } from 'drizzle-orm';
+import { eq, or, and, ilike, desc, asc, count, inArray } from 'drizzle-orm';
 import { db } from '@/db';
 import { certificateTable, jewelryTable, certificateFileTable, gemologicalDetailTable, additionalStonesTable } from '@/db/schema';
 import type { CertificateRepository } from './certificate.repository';
@@ -202,7 +202,20 @@ export class DrizzleCertificateRepository implements CertificateRepository {
     }
 
     if (filters?.category && filters.category !== 'all') {
-      conditions.push(eq(jewelryTable.category, filters.category as JewelryCategory));
+      const cat = filters.category as string;
+      if (cat === 'Diamante') {
+        conditions.push(
+          or(
+            eq(certificateTable.certificateType, 'stone'),
+            eq(jewelryTable.category, 'Piedra Suelta'),
+            eq(jewelryTable.category, 'Diamante')
+          )
+        );
+      } else if (cat === 'Joya') {
+        conditions.push(eq(certificateTable.certificateType, 'jewelry'));
+      } else {
+        conditions.push(eq(jewelryTable.category, cat as JewelryCategory));
+      }
     }
 
     if (filters?.search) {
@@ -225,10 +238,60 @@ export class DrizzleCertificateRepository implements CertificateRepository {
       ? await query.where(conditions.length === 1 ? conditions[0] : and(...conditions))
       : await query;
 
-    return rows.map(({ certificates: certRow, jewelry: jewelryRow }) => ({
-      ...mapCertificate(certRow),
-      jewelry: mapJewelry(jewelryRow),
-    }));
+    const certIds = rows.map((r) => r.certificates.id);
+    const imagesMap: Record<string, string> = {};
+    const gemDetailsMap: Record<string, typeof gemologicalDetailTable.$inferSelect> = {};
+
+    if (certIds.length > 0) {
+      const [imageFiles, gemDetails] = await Promise.all([
+        db
+          .select()
+          .from(certificateFileTable)
+          .where(
+            and(
+              inArray(certificateFileTable.certificateId, certIds),
+              eq(certificateFileTable.type, 'jewelry_image')
+            )
+          )
+          .orderBy(asc(certificateFileTable.displayOrder)),
+        db
+          .select()
+          .from(gemologicalDetailTable)
+          .where(inArray(gemologicalDetailTable.certificateId, certIds)),
+      ]);
+
+      for (const f of imageFiles) {
+        if (!imagesMap[f.certificateId]) {
+          imagesMap[f.certificateId] = f.storageKey;
+        }
+      }
+
+      for (const g of gemDetails) {
+        gemDetailsMap[g.certificateId] = g;
+      }
+    }
+
+    return rows.map(({ certificates: certRow, jewelry: jewelryRow }) => {
+      const jewelry = mapJewelry(jewelryRow);
+      const gem = gemDetailsMap[certRow.id];
+
+      if (gem) {
+        jewelry.stoneType = gem.variety || (gem.stoneKind === 'diamond' ? 'Diamante' : 'Gema de Color');
+        jewelry.stoneWeight = gem.weight !== null && gem.weight !== undefined ? parseFloat(gem.weight) : undefined;
+        jewelry.stoneColor = gem.color ?? undefined;
+        jewelry.stoneClarity = gem.clarityGrade ?? undefined;
+      }
+
+      if (certRow.certificateType === 'stone') {
+        jewelry.category = (gem?.stoneKind === 'colored_gem' ? 'Gema' : 'Diamante') as unknown as JewelryCategory;
+      }
+
+      return {
+        ...mapCertificate(certRow),
+        jewelry,
+        thumbnailUrl: imagesMap[certRow.id],
+      };
+    });
   }
 
   async findPaginated(filters?: CertificateFilters): Promise<PaginatedResult<CertificateWithJewelry>> {
@@ -243,7 +306,20 @@ export class DrizzleCertificateRepository implements CertificateRepository {
     }
 
     if (filters?.category && filters.category !== 'all') {
-      conditions.push(eq(jewelryTable.category, filters.category as JewelryCategory));
+      const cat = filters.category as string;
+      if (cat === 'Diamante') {
+        conditions.push(
+          or(
+            eq(certificateTable.certificateType, 'stone'),
+            eq(jewelryTable.category, 'Piedra Suelta'),
+            eq(jewelryTable.category, 'Diamante')
+          )
+        );
+      } else if (cat === 'Joya') {
+        conditions.push(eq(certificateTable.certificateType, 'jewelry'));
+      } else {
+        conditions.push(eq(jewelryTable.category, cat as JewelryCategory));
+      }
     }
 
     if (filters?.search && filters.search.trim()) {
@@ -286,34 +362,60 @@ export class DrizzleCertificateRepository implements CertificateRepository {
       ? await selectQuery.where(whereClause)
       : await selectQuery;
 
-    // Attach thumbnails if any
+    // Attach thumbnails and gemological details
     const certIds = rows.map((r) => r.certificates.id);
-    let imagesMap: Record<string, string> = {};
+    const imagesMap: Record<string, string> = {};
+    const gemDetailsMap: Record<string, typeof gemologicalDetailTable.$inferSelect> = {};
 
     if (certIds.length > 0) {
-      const imageFiles = await db
-        .select()
-        .from(certificateFileTable)
-        .where(
-          and(
-            inArray(certificateFileTable.certificateId, certIds),
-            eq(certificateFileTable.type, 'jewelry_image')
+      const [imageFiles, gemDetails] = await Promise.all([
+        db
+          .select()
+          .from(certificateFileTable)
+          .where(
+            and(
+              inArray(certificateFileTable.certificateId, certIds),
+              eq(certificateFileTable.type, 'jewelry_image')
+            )
           )
-        );
+          .orderBy(asc(certificateFileTable.displayOrder)),
+        db
+          .select()
+          .from(gemologicalDetailTable)
+          .where(inArray(gemologicalDetailTable.certificateId, certIds)),
+      ]);
 
       for (const f of imageFiles) {
         if (!imagesMap[f.certificateId]) {
           imagesMap[f.certificateId] = f.storageKey;
         }
       }
+
+      for (const g of gemDetails) {
+        gemDetailsMap[g.certificateId] = g;
+      }
     }
 
     const data: CertificateWithJewelry[] = rows.map(({ certificates: certRow, jewelry: jewelryRow }) => {
       const hexPart = certRow.id.replace(/-/g, '').slice(0, 8).toUpperCase();
       const lastPart = certRow.id.replace(/-/g, '').slice(-4).toUpperCase();
+      const jewelry = mapJewelry(jewelryRow);
+      const gem = gemDetailsMap[certRow.id];
+
+      if (gem) {
+        jewelry.stoneType = gem.variety || (gem.stoneKind === 'diamond' ? 'Diamante' : 'Gema de Color');
+        jewelry.stoneWeight = gem.weight !== null && gem.weight !== undefined ? parseFloat(gem.weight) : undefined;
+        jewelry.stoneColor = gem.color ?? undefined;
+        jewelry.stoneClarity = gem.clarityGrade ?? undefined;
+      }
+
+      if (certRow.certificateType === 'stone') {
+        jewelry.category = (gem?.stoneKind === 'colored_gem' ? 'Gema' : 'Diamante') as unknown as JewelryCategory;
+      }
+
       return {
         ...mapCertificate(certRow),
-        jewelry: mapJewelry(jewelryRow),
+        jewelry,
         thumbnailUrl: imagesMap[certRow.id],
         hash: `${hexPart}...${lastPart}`,
         gemologist: certRow.createdBy || 'M. Valenzuela (D.G.G.)',
@@ -403,7 +505,6 @@ export class DrizzleCertificateRepository implements CertificateRepository {
         updatedAt: new Date(),
       };
       if (input.status !== undefined) certUpdates.status = input.status;
-      if (input.certificateType !== undefined) certUpdates.certificateType = input.certificateType;
       if (input.issuedAt !== undefined) certUpdates.issuedAt = new Date(input.issuedAt);
       if (input.certificateNumber !== undefined) certUpdates.certificateNumber = input.certificateNumber;
 

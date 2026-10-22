@@ -34,6 +34,12 @@ export const updateCertificateSchema = z.object({
   status: z.enum(['draft', 'active', 'revoked']).optional(),
   issuedAt: z.string().optional(),
   certificateNumber: z.string().optional(),
+  // certificateType es inmutable tras su registro inicial
+  certificateType: z
+    .never({
+      invalid_type_error: 'El tipo de certificado es inmutable tras su registro inicial',
+    })
+    .optional(),
 });
 
 export const referenceSchema = z.string().regex(

@@ -7,11 +7,17 @@ export class LocalStorageService implements StorageService {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
+    return this.uploadBuffer(buffer, file.name, folder, file.type || 'application/octet-stream');
+  }
+
+  async uploadBuffer(buffer: Buffer, originalFilename: string, folder: string, mimeType: string): Promise<FileUploadResult> {
     const cleanFolder = folder.replace(/^\/+|\/+$/g, '');
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', cleanFolder);
+    
+    // Ensure directory exists
     await fs.mkdir(uploadDir, { recursive: true });
 
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const safeName = originalFilename.replace(/[^a-zA-Z0-9._-]/g, '_');
     const filename = `${Date.now()}-${safeName}`;
     const filePath = path.join(uploadDir, filename);
 
@@ -21,8 +27,8 @@ export class LocalStorageService implements StorageService {
 
     return {
       storageKey,
-      size: file.size,
-      mimeType: file.type || 'application/octet-stream',
+      size: buffer.length,
+      mimeType,
     };
   }
 
@@ -40,4 +46,3 @@ export class LocalStorageService implements StorageService {
     }
   }
 }
-

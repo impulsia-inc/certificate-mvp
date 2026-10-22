@@ -1,4 +1,6 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import Image from 'next/image';
 import {
   Download,
@@ -9,10 +11,11 @@ import {
   AlertTriangle,
   FileText,
   Microscope,
-  Lock,
   Sparkles,
   Scale,
   Award,
+  Layers,
+  Gem,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CertificateDetail } from '@/types';
@@ -23,10 +26,18 @@ interface CertificateDetailsProps {
 }
 
 export function CertificateDetails({ certificate, className }: CertificateDetailsProps) {
-  const { jewelry, files } = certificate;
+  const { jewelry, files, gemologicalDetail, additionalStones } = certificate;
+  
+  // PDF Document
   const pdfFile = files.find((f) => f.type === 'certificate_pdf');
-  const imageFile = files.find((f) => f.type === 'jewelry_image');
-  const imageUrl = imageFile ? imageFile.storageKey : null;
+  
+  // Image Files sorted by displayOrder
+  const imageFiles = files
+    .filter((f) => f.type === 'jewelry_image')
+    .sort((a, b) => (a.displayOrder ?? 1) - (b.displayOrder ?? 1));
+
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const currentImage = imageFiles[activeImageIdx]?.storageKey || null;
 
   // Format date in Spanish (e.g., "12 de marzo, 2026")
   const issuedDateFormatted = new Date(certificate.issuedAt).toLocaleDateString('es-ES', {
@@ -38,34 +49,65 @@ export function CertificateDetails({ certificate, className }: CertificateDetail
   const isActive = certificate.status === 'active';
   const isRevoked = certificate.status === 'revoked';
   const isDraft = certificate.status === 'draft';
+  const isStone = certificate.certificateType === 'stone';
 
-  // 4Cs / Gem main specs
+  // 4Cs / Gem main specs (reading directly from gemologicalDetail or jewelry)
   const gemSpecs = [
     {
       label: 'CARAT WEIGHT',
       sublabel: 'Peso en Quilates',
-      value: jewelry.stoneWeight ? `${jewelry.stoneWeight} ct` : 'N/A',
-      highlight: Boolean(jewelry.stoneWeight),
+      value: gemologicalDetail?.weight
+        ? `${gemologicalDetail.weight} ct`
+        : jewelry.stoneWeight
+        ? `${jewelry.stoneWeight} ct`
+        : 'N/A',
+      highlight: Boolean(gemologicalDetail?.weight || jewelry.stoneWeight),
     },
     {
       label: 'COLOR GRADE',
       sublabel: 'Grado de Color',
-      value: jewelry.stoneColor || 'N/A',
-      highlight: Boolean(jewelry.stoneColor),
+      value: gemologicalDetail?.color || jewelry.stoneColor || 'N/A',
+      highlight: Boolean(gemologicalDetail?.color || jewelry.stoneColor),
     },
     {
       label: 'CLARITY GRADE',
       sublabel: 'Pureza / Claridad',
-      value: jewelry.stoneClarity || 'N/A',
-      highlight: Boolean(jewelry.stoneClarity),
+      value: gemologicalDetail?.clarityGrade || jewelry.stoneClarity || 'N/A',
+      highlight: Boolean(gemologicalDetail?.clarityGrade || jewelry.stoneClarity),
     },
     {
       label: 'CUT & GEM TYPE',
       sublabel: 'Corte / Gema',
-      value: jewelry.stoneType || 'N/A',
-      highlight: Boolean(jewelry.stoneType),
+      value:
+        gemologicalDetail?.cutGrade ||
+        gemologicalDetail?.shapeAndCut ||
+        jewelry.stoneType ||
+        'N/A',
+      highlight: Boolean(
+        gemologicalDetail?.cutGrade || gemologicalDetail?.shapeAndCut || jewelry.stoneType
+      ),
     },
   ];
+
+  // Detailed Gemological Specs
+  const detailedGemSpecs: { label: string; value: string | undefined | null }[] = [
+    { label: 'Naturaleza de la Muestra', value: gemologicalDetail?.nature || 'Natural' },
+    {
+      label: 'Variedad Mineral',
+      value:
+        gemologicalDetail?.variety ||
+        (gemologicalDetail?.stoneKind === 'diamond' ? 'Diamante Natural' : 'Gema de Color'),
+    },
+    { label: 'Forma y Estilo de Corte', value: gemologicalDetail?.shapeAndCut },
+    { label: 'Medidas Milimétricas', value: gemologicalDetail?.measurements },
+    { label: 'Grado de Corte (Cut Grade)', value: gemologicalDetail?.cutGrade },
+    { label: 'Grado de Pulido (Polish)', value: gemologicalDetail?.polish },
+    { label: 'Simetría (Symmetry)', value: gemologicalDetail?.symmetry },
+    { label: 'Fluorescencia UV', value: gemologicalDetail?.fluorescence },
+    { label: 'Proporciones Técnicas', value: gemologicalDetail?.proportions },
+    { label: 'Transparencia', value: gemologicalDetail?.transparency },
+    { label: 'Dictamen de Tratamiento', value: gemologicalDetail?.treatment },
+  ].filter((item) => Boolean(item.value && item.value.trim() !== ''));
 
   // Download button component to reuse in desktop left col & mobile bottom
   const DownloadButton = ({ mobile = false }: { mobile?: boolean }) => {
@@ -173,34 +215,72 @@ export function CertificateDetails({ certificate, className }: CertificateDetail
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
         {/* ─── COLUMNA IZQUIERDA (5 columnas desktop) ─── */}
         <div className="lg:col-span-5 space-y-6 flex flex-col">
-          {/* Marco Fotográfico de la Joya */}
-          <div className="relative aspect-[4/3] sm:aspect-square lg:aspect-square w-full rounded-xl overflow-hidden bg-white border border-[#E9E8E3] shadow-elevation-md group">
-            {/* Tag Flotante "MACRO 1:1 GEM CAM" */}
-            <div className="absolute top-3.5 left-3.5 z-10 inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-panel/90 backdrop-blur-sm rounded text-[10px] font-mono tracking-wider uppercase text-white shadow-sm">
-              <Camera className="w-3.5 h-3.5 text-gold" />
-              <span>MACRO 1:1 GEM CAM</span>
+          {/* Marco Fotográfico Principal de la Muestra */}
+          <div className="space-y-3">
+            <div className="relative aspect-[4/3] sm:aspect-square lg:aspect-square w-full rounded-xl overflow-hidden bg-white border border-[#E9E8E3] shadow-elevation-md group">
+              {/* Tag Flotante Macro Cam */}
+              <div className="absolute top-3.5 left-3.5 z-10 inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-panel/90 backdrop-blur-sm rounded text-[10px] font-mono tracking-wider uppercase text-white shadow-sm">
+                <Camera className="w-3.5 h-3.5 text-gold" />
+                <span>{activeImageIdx === 0 ? 'MACRO 1:1 GEM CAM' : 'MACRO DETALLE 2:1'}</span>
+              </div>
+
+              {currentImage ? (
+                <Image
+                  src={currentImage}
+                  alt={jewelry.name || 'Fotografía de muestra peritada'}
+                  fill
+                  className="object-cover group-hover:scale-[1.02] transition-transform duration-500"
+                  sizes="(max-width: 1024px) 100vw, 40vw"
+                  priority
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-surface-alt">
+                  <div className="w-16 h-16 rounded-full bg-white border border-[#E9E8E3] flex items-center justify-center mb-3 text-gold">
+                    <Microscope className="w-8 h-8" />
+                  </div>
+                  <p className="text-[13px] font-medium text-content-body font-sans">
+                    Fotografía Pericial en Archivo
+                  </p>
+                  <p className="text-[11px] text-content-muted mt-1">
+                    Muestra documentada bajo microscopía en sede
+                  </p>
+                </div>
+              )}
             </div>
 
-            {imageUrl ? (
-              <Image
-                src={imageUrl}
-                alt={jewelry.name || 'Fotografía de joya peritada'}
-                fill
-                className="object-cover group-hover:scale-[1.02] transition-transform duration-500"
-                sizes="(max-width: 1024px) 100vw, 40vw"
-                priority
-              />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-surface-alt">
-                <div className="w-16 h-16 rounded-full bg-white border border-[#E9E8E3] flex items-center justify-center mb-3 text-gold">
-                  <Microscope className="w-8 h-8" />
-                </div>
-                <p className="text-[13px] font-medium text-content-body font-sans">
-                  Fotografía Pericial en Archivo
-                </p>
-                <p className="text-[11px] text-content-muted mt-1">
-                  Muestra documentada bajo microscopía en sede
-                </p>
+            {/* Selector de Fotografías (si hay imagen primaria y secundaria) */}
+            {imageFiles.length > 1 && (
+              <div className="flex items-center gap-2 pt-1">
+                {imageFiles.map((img, idx) => (
+                  <button
+                    key={img.id || idx}
+                    type="button"
+                    onClick={() => setActiveImageIdx(idx)}
+                    className={cn(
+                      'relative flex items-center gap-2 p-1.5 rounded-lg border text-left transition-all cursor-pointer flex-1',
+                      activeImageIdx === idx
+                        ? 'border-gold bg-gold/10 ring-1 ring-gold shadow-sm'
+                        : 'border-[#E9E8E3] bg-white hover:bg-surface-alt text-content-muted'
+                    )}
+                  >
+                    <div className="relative w-10 h-10 rounded border border-[#E9E8E3] overflow-hidden shrink-0 bg-surface-alt">
+                      <Image
+                        src={img.storageKey}
+                        alt={`Muestra ${idx + 1}`}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="overflow-hidden">
+                      <span className="text-[10px] font-bold uppercase tracking-wider block text-content-titleDesktop">
+                        {idx === 0 ? 'Foto 1 · Frontal' : 'Foto 2 · Detalle'}
+                      </span>
+                      <span className="text-[9px] text-content-muted truncate block">
+                        {img.originalName || `Muestra ${idx + 1}`}
+                      </span>
+                    </div>
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -225,6 +305,13 @@ export function CertificateDetails({ certificate, className }: CertificateDetail
               <div className="flex justify-between items-center py-1 border-b border-stone-100">
                 <span className="text-content-muted text-[12px]">Fecha de Dictamen</span>
                 <span className="text-content-body font-medium">{issuedDateFormatted}</span>
+              </div>
+
+              <div className="flex justify-between items-center py-1 border-b border-stone-100">
+                <span className="text-content-muted text-[12px]">Tipo de Certificación</span>
+                <span className="text-content-body font-medium uppercase text-[12px]">
+                  {isStone ? 'Diamante / Piedra Suelta' : 'Joya Montada'}
+                </span>
               </div>
 
               <div className="flex justify-between items-center py-1 border-b border-stone-100">
@@ -306,12 +393,101 @@ export function CertificateDetails({ certificate, className }: CertificateDetail
               </div>
             </div>
 
+            {/* Tabla Detallada de Especificaciones Gemológicas Periciales */}
+            {detailedGemSpecs.length > 0 && (
+              <div className="pt-2">
+                <div className="flex items-center gap-2 mb-4">
+                  <Gem className="w-4 h-4 text-gold" />
+                  <h3 className="text-[11px] font-semibold tracking-[0.15em] uppercase text-content-titleDesktop font-sans">
+                    Dictamen Gemológico Pericial
+                  </h3>
+                </div>
+
+                <div className="divide-y divide-[#E9E8E3] border border-[#E9E8E3] rounded-lg overflow-hidden bg-ivory/50">
+                  {detailedGemSpecs.map((item, idx) => (
+                    <div key={idx} className="grid grid-cols-1 sm:grid-cols-3 p-3.5 text-[13px] font-sans">
+                      <span className="text-content-muted font-medium">{item.label}</span>
+                      <span className="sm:col-span-2 text-content-titleDesktop font-medium">
+                        {item.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Piedras Complementarias / Acentos (si existen) */}
+            {additionalStones && additionalStones.length > 0 && (
+              <div className="pt-2">
+                <div className="flex items-center gap-2 mb-4">
+                  <Layers className="w-4 h-4 text-gold" />
+                  <h3 className="text-[11px] font-semibold tracking-[0.15em] uppercase text-content-titleDesktop font-sans">
+                    Piedras Complementarias / Pavé
+                  </h3>
+                </div>
+
+                <div className="space-y-3">
+                  {additionalStones.map((stone, idx) => (
+                    <div
+                      key={stone.id || idx}
+                      className="border border-[#E9E8E3] rounded-lg p-4 bg-surface-alt/50 space-y-2 text-[13px] font-sans"
+                    >
+                      <div className="flex justify-between items-center border-b border-[#E9E8E3] pb-2">
+                        <span className="font-semibold text-content-titleDesktop uppercase text-[11px] tracking-wider">
+                          {stone.stoneKind === 'diamond' ? 'Diamantes de Acento' : (stone.variety || 'Gemas Adicionales')}
+                        </span>
+                        {stone.totalStones && (
+                          <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-[#E9E8E3] text-content-body">
+                            {stone.totalStones} piezas
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px] pt-1">
+                        {stone.estimatedWeight && (
+                          <div>
+                            <span className="text-content-muted">Peso Estimado: </span>
+                            <span className="font-medium text-content-titleDesktop">{stone.estimatedWeight} ct</span>
+                          </div>
+                        )}
+                        {(stone.estimatedColor || stone.estimatedClarity) && (
+                          <div>
+                            <span className="text-content-muted">Gradación: </span>
+                            <span className="font-medium text-content-titleDesktop">
+                              {[
+                                stone.estimatedColor ? `Color ${stone.estimatedColor}` : null,
+                                stone.estimatedClarity ? `Claridad ${stone.estimatedClarity}` : null,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </span>
+                          </div>
+                        )}
+                        {stone.shapeAndCut && (
+                          <div>
+                            <span className="text-content-muted">Talla / Corte: </span>
+                            <span className="font-medium text-content-titleDesktop">{stone.shapeAndCut}</span>
+                          </div>
+                        )}
+                        {stone.measurements && (
+                          <div>
+                            <span className="text-content-muted">Medidas: </span>
+                            <span className="font-medium text-content-titleDesktop">{stone.measurements}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Tabla / Listado de Especificaciones de Montura y Joyería */}
             <div className="pt-2">
               <div className="flex items-center gap-2 mb-4">
                 <Scale className="w-4 h-4 text-gold" />
                 <h3 className="text-[11px] font-semibold tracking-[0.15em] uppercase text-content-titleDesktop font-sans">
-                  Especificaciones de Montura & Joyería
+                  {isStone ? 'Especificaciones de la Muestra' : 'Especificaciones de Montura & Joyería'}
                 </h3>
               </div>
 
@@ -319,36 +495,46 @@ export function CertificateDetails({ certificate, className }: CertificateDetail
                 <div className="grid grid-cols-1 sm:grid-cols-3 p-3.5 text-[13px] font-sans">
                   <span className="text-content-muted font-medium">Categoría / Pieza</span>
                   <span className="sm:col-span-2 text-content-titleDesktop font-medium">
-                    {jewelry.category ? `${jewelry.category} — ${jewelry.name}` : jewelry.name}
+                    {isStone
+                      ? 'Diamante / Piedra Suelta'
+                      : jewelry.category
+                      ? `${jewelry.category} — ${jewelry.name}`
+                      : jewelry.name}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 p-3.5 text-[13px] font-sans">
-                  <span className="text-content-muted font-medium">Metal & Pureza</span>
-                  <span className="sm:col-span-2 text-content-titleDesktop font-medium">
-                    {jewelry.metalType || jewelry.material || 'N/A'}
-                    {jewelry.purity ? ` (${jewelry.purity})` : ''}
-                  </span>
-                </div>
+                {!isStone && (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 p-3.5 text-[13px] font-sans">
+                      <span className="text-content-muted font-medium">Metal & Pureza</span>
+                      <span className="sm:col-span-2 text-content-titleDesktop font-medium">
+                        {jewelry.metalType || jewelry.material || 'N/A'}
+                        {jewelry.purity ? ` (${jewelry.purity})` : ''}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 p-3.5 text-[13px] font-sans">
+                      <span className="text-content-muted font-medium">Peso Total</span>
+                      <span className="sm:col-span-2 text-content-titleDesktop font-medium">
+                        {jewelry.grossWeight || jewelry.weight
+                          ? `${jewelry.grossWeight || jewelry.weight} ${jewelry.weightUnit || 'g'}`
+                          : 'N/A'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 p-3.5 text-[13px] font-sans">
+                      <span className="text-content-muted font-medium">Serie / Punzón</span>
+                      <span className="sm:col-span-2 font-mono text-content-titleDesktop">
+                        {jewelry.serialNumber || jewelry.model || 'N/A'}
+                      </span>
+                    </div>
+                  </>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 p-3.5 text-[13px] font-sans">
-                  <span className="text-content-muted font-medium">Peso Total</span>
-                  <span className="sm:col-span-2 text-content-titleDesktop font-medium">
-                    {jewelry.weight ? `${jewelry.weight} ${jewelry.weightUnit || 'g'}` : 'N/A'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 p-3.5 text-[13px] font-sans">
-                  <span className="text-content-muted font-medium">Serie / Referencia</span>
-                  <span className="sm:col-span-2 font-mono text-content-titleDesktop">
-                    {jewelry.serialNumber || jewelry.model || 'N/A'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 p-3.5 text-[13px] font-sans">
-                  <span className="text-content-muted font-medium">Dictamen / Descripción</span>
+                  <span className="text-content-muted font-medium">Dictamen / Observaciones</span>
                   <span className="sm:col-span-2 text-content-body leading-relaxed">
-                    {jewelry.description || 'Sin observaciones adicionales registradas en el dictamen.'}
+                    {jewelry.description || jewelry.comments || 'Sin observaciones adicionales registradas en el dictamen pericial.'}
                   </span>
                 </div>
               </div>

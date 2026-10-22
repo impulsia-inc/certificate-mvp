@@ -295,9 +295,8 @@ export function CertificateManagementView({
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
             {[
               { id: 'all', label: `TODOS (${stats.total})` },
-              { id: 'Anillo', label: 'DIAMANTES' },
-              { id: 'Pulsera', label: 'GEMAS' },
-              { id: 'Cadena', label: 'JOYERÍA' },
+              { id: 'Diamante', label: 'DIAMANTES' },
+              { id: 'Joya', label: 'JOYERÍA' },
             ].map((cat) => (
               <button
                 key={cat.id}

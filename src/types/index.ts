@@ -127,7 +127,7 @@ export interface CertificateDetail extends CertificateWithJewelry {
 export interface CertificateFilters {
   search?: string;
   status?: CertificateStatus | 'all';
-  category?: JewelryCategory | 'all';
+  category?: JewelryCategory | 'Diamante' | 'Joya' | 'all' | string;
   page?: number;
   pageSize?: number;
 }
@@ -152,7 +152,6 @@ export interface UpdateCertificateInput {
   jewelry?: Partial<Omit<Jewelry, 'id'>>;
   status?: CertificateStatus;
   issuedAt?: string;
-  certificateType?: CertificateType;
   certificateNumber?: string;
 }
 

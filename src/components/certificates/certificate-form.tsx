@@ -9,7 +9,7 @@ import {
   type CertificateFormData 
 } from '@/features/certificates/schemas';
 import { TRANSLATIONS, type FormLanguage } from '@/features/certificates/constants/translations';
-import { createCertificateAction } from '@/features/certificates/actions/certificate.actions';
+import { createCertificateAction, updateCertificateAction } from '@/features/certificates/actions/certificate.actions';
 import { CertificatePreviewModal } from './certificate-preview-modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,7 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  Lock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CertificateDetail } from '@/types';
@@ -43,11 +44,21 @@ export function CertificateForm({ initialData, onSubmit }: CertificateFormProps)
   const [lang, setLang] = useState<FormLanguage>('es');
   const t = TRANSLATIONS[lang];
 
+  const isEditMode = Boolean(initialData?.id);
+
+  // Existing image lookup in edit mode
+  const existingImage1 = initialData?.files?.find(
+    (f) => f.type === 'jewelry_image' && (f.role === 'primary_image' || f.displayOrder === 1)
+  );
+  const existingImage2 = initialData?.files?.find(
+    (f) => f.type === 'jewelry_image' && (f.role === 'secondary_image' || f.displayOrder === 2)
+  );
+
   // Images state
   const [image1File, setImage1File] = useState<File | null>(null);
   const [image2File, setImage2File] = useState<File | null>(null);
-  const [image1Url, setImage1Url] = useState<string | null>(null);
-  const [image2Url, setImage2Url] = useState<string | null>(null);
+  const [image1Url, setImage1Url] = useState<string | null>(existingImage1?.storageKey || null);
+  const [image2Url, setImage2Url] = useState<string | null>(existingImage2?.storageKey || null);
 
   // Drag and drop state
   const [isDragging, setIsDragging] = useState(false);
@@ -152,8 +163,9 @@ export function CertificateForm({ initialData, onSubmit }: CertificateFormProps)
 
   const currentCertType = watch('certificateType');
 
-  // Handle switching between DIAMANTE and JOYA
+  // Handle switching between DIAMANTE and JOYA (Blocked in edit mode)
   const handleTypeSelect = (type: 'stone' | 'jewelry') => {
+    if (isEditMode) return;
     setValue('certificateType', type, { shouldValidate: true });
     if (type === 'stone') {
       setValue('stoneKind', 'diamond', { shouldValidate: true });
@@ -249,19 +261,37 @@ export function CertificateForm({ initialData, onSubmit }: CertificateFormProps)
         formDataValues.hasAdditionalGems = false;
       }
 
-      // If legacy onSubmit prop is provided (e.g. edit mode)
-      if (onSubmit) {
-        await onSubmit(formDataValues as unknown as Record<string, unknown>);
-        router.push('/admin/certificados');
-        router.refresh();
-        return;
-      }
-
       // Build real FormData payload with binary images
       const fd = new FormData();
+      if (isEditMode) {
+        fd.append('id', initialData!.id);
+      }
       fd.append('data', JSON.stringify(formDataValues));
       if (image1File) fd.append('image1', image1File);
       if (image2File) fd.append('image2', image2File);
+
+      if (isEditMode) {
+        if (onSubmit) {
+          await onSubmit(formDataValues as unknown as Record<string, unknown>);
+        }
+        const res = await updateCertificateAction(fd);
+        if (!res.success) {
+          setSubmitError(res.error);
+          return;
+        }
+
+        setSubmitSuccess(
+          actionStatus === 'active' 
+            ? `Certificación actualizada y publicada con éxito: ${res.data.reference}`
+            : `Cambios guardados exitosamente: ${res.data.reference}`
+        );
+
+        setTimeout(() => {
+          router.push('/admin/certificados');
+          router.refresh();
+        }, 1000);
+        return;
+      }
 
       const res = await createCertificateAction(fd);
       if (!res.success) {
@@ -362,16 +392,30 @@ export function CertificateForm({ initialData, onSubmit }: CertificateFormProps)
 
           {/* Selector Principal Simplificado: DIAMANTE vs JOYA */}
           <div className="space-y-3">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-content-muted font-sans">
-              {t.header.certTypeLabel} *
-            </Label>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-content-muted font-sans">
+                {t.header.certTypeLabel} *
+              </Label>
+              {isEditMode && (
+                <div 
+                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200/80 rounded-full text-[11px] font-semibold text-amber-800 font-sans shadow-subtle"
+                  title="Tipo de certificado inmutable tras su registro inicial"
+                >
+                  <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span>Tipo de certificado inmutable tras su registro inicial</span>
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Opción 1: DIAMANTE */}
               <button
                 type="button"
-                onClick={() => handleTypeSelect('stone')}
+                disabled={isEditMode}
+                onClick={() => !isEditMode && handleTypeSelect('stone')}
                 className={cn(
-                  'flex items-start gap-4 p-5 rounded-xl border text-left transition-all duration-200 cursor-pointer',
+                  'flex items-start gap-4 p-5 rounded-xl border text-left transition-all duration-200',
+                  isEditMode ? 'cursor-not-allowed opacity-70 select-none' : 'cursor-pointer',
                   currentCertType === 'stone'
                     ? 'border-[#AF9052] bg-white ring-2 ring-[#AF9052]/20 shadow-elevation-sm'
                     : 'border-[#E9E8E3] bg-surface-alt hover:bg-white hover:border-stone-300'
@@ -385,13 +429,27 @@ export function CertificateForm({ initialData, onSubmit }: CertificateFormProps)
                 >
                   <Diamond className="w-5 h-5" />
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm text-content-titleDesktop font-sans">
-                      {t.header.typeStone}
-                    </span>
-                    {currentCertType === 'stone' && (
-                      <span className="w-2 h-2 rounded-full bg-gold" />
+                <div className="space-y-1 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm text-content-titleDesktop font-sans">
+                        {t.header.typeStone}
+                      </span>
+                      {currentCertType === 'stone' && (
+                        <span className="w-2 h-2 rounded-full bg-gold" />
+                      )}
+                    </div>
+                    {isEditMode && (
+                      currentCertType === 'stone' ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded border border-amber-200">
+                          <Lock className="w-3 h-3 text-amber-600" />
+                          Inmutable
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-mono text-stone-400">
+                          (Bloqueado)
+                        </span>
+                      )
                     )}
                   </div>
                   <p className="text-xs text-content-body font-sans leading-relaxed">
@@ -403,9 +461,11 @@ export function CertificateForm({ initialData, onSubmit }: CertificateFormProps)
               {/* Opción 2: JOYA */}
               <button
                 type="button"
-                onClick={() => handleTypeSelect('jewelry')}
+                disabled={isEditMode}
+                onClick={() => !isEditMode && handleTypeSelect('jewelry')}
                 className={cn(
-                  'flex items-start gap-4 p-5 rounded-xl border text-left transition-all duration-200 cursor-pointer',
+                  'flex items-start gap-4 p-5 rounded-xl border text-left transition-all duration-200',
+                  isEditMode ? 'cursor-not-allowed opacity-70 select-none' : 'cursor-pointer',
                   currentCertType === 'jewelry'
                     ? 'border-[#AF9052] bg-white ring-2 ring-[#AF9052]/20 shadow-elevation-sm'
                     : 'border-[#E9E8E3] bg-surface-alt hover:bg-white hover:border-stone-300'
@@ -419,13 +479,27 @@ export function CertificateForm({ initialData, onSubmit }: CertificateFormProps)
                 >
                   <Gem className="w-5 h-5" />
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm text-content-titleDesktop font-sans">
-                      {t.header.typeJewelry}
-                    </span>
-                    {currentCertType === 'jewelry' && (
-                      <span className="w-2 h-2 rounded-full bg-gold" />
+                <div className="space-y-1 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm text-content-titleDesktop font-sans">
+                        {t.header.typeJewelry}
+                      </span>
+                      {currentCertType === 'jewelry' && (
+                        <span className="w-2 h-2 rounded-full bg-gold" />
+                      )}
+                    </div>
+                    {isEditMode && (
+                      currentCertType === 'jewelry' ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded border border-amber-200">
+                          <Lock className="w-3 h-3 text-amber-600" />
+                          Inmutable
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-mono text-stone-400">
+                          (Bloqueado)
+                        </span>
+                      )
                     )}
                   </div>
                   <p className="text-xs text-content-body font-sans leading-relaxed">
